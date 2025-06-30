@@ -47,29 +47,20 @@ func NewHandler(p HandlerParam) *Handler {
 func (h *Handler) Login(c echo.Context) error {
 	var req LoginRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	response, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
 		if err == ErrInvalidCredentials {
-			return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-				Error: "Invalid email or password",
-			})
+			return c.JSON(http.StatusUnauthorized, dto.NewAuthError("Invalid email or password"))
 		}
 		h.logger.Error("Login failed", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Login failed",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Login failed"))
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -90,43 +81,22 @@ func (h *Handler) Login(c echo.Context) error {
 func (h *Handler) RefreshToken(c echo.Context) error {
 	var req RefreshTokenRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	response, err := h.authService.RefreshToken(req.RefreshToken)
 	if err != nil {
 		if err == ErrInvalidRefreshToken {
-			return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-				Error: "Invalid refresh token",
-			})
+			return c.JSON(http.StatusUnauthorized, dto.NewAuthError("Invalid refresh token"))
 		}
 		h.logger.Error("Token refresh failed", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Token refresh failed",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Token refresh failed"))
 	}
 
 	return c.JSON(http.StatusOK, response)
 }
 
-// Helper function to parse validation errors
-func parseValidationErrors(err error) map[string]string {
-	details := make(map[string]string)
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		for field, message := range validationErrors.Errors {
-			details[field] = message
-		}
-	} else {
-		details["validation"] = err.Error()
-	}
-	return details
-}

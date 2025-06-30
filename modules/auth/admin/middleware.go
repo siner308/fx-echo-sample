@@ -48,17 +48,13 @@ func (m *Middleware) VerifyAdminToken() echo.MiddlewareFunc {
 		return func(echoCtx echo.Context) error {
 			token := extractTokenFromHeader(echoCtx)
 			if token == "" {
-				return echoCtx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-					Error: "Missing or invalid authorization header",
-				})
+				return echoCtx.JSON(http.StatusUnauthorized, dto.NewAuthError("Missing or invalid authorization header"))
 			}
 
 			claims, err := m.adminAuthService.ValidateAdminToken(token)
 			if err != nil {
 				m.logger.Warn("Invalid admin token", zap.Error(err))
-				return echoCtx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-					Error: "Invalid or expired admin token",
-				})
+				return echoCtx.JSON(http.StatusUnauthorized, dto.NewAuthError("Invalid or expired admin token"))
 			}
 
 			// Set user information in context using type-safe keys

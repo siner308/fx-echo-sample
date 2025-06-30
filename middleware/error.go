@@ -45,9 +45,7 @@ func (em *ErrorMiddleware) ErrorHandler() echo.HTTPErrorHandler {
 			if c.Request().Method == http.MethodHead {
 				err = c.NoContent(code)
 			} else {
-				err = c.JSON(code, dto.ErrorResponse{
-					Error: message,
-				})
+				err = c.JSON(code, dto.NewError(message))
 			}
 			if err != nil {
 				em.logger.Error("Failed to send error response", zap.Error(err))

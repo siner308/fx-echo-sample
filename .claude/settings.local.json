@@ -10,7 +10,10 @@
       "Bash(git reset:*)",
       "Bash(git commit:*)",
       "Bash(rg:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

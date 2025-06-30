@@ -56,9 +56,7 @@ func (h *Handler) GetItems(c echo.Context) error {
 
 	if itemType != "" {
 		if !entity.IsValidItemType(itemType) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: "Invalid item type",
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError("Invalid item type", "invalid_request_error"))
 		}
 		items, err = h.service.GetItemsByType(entity.ItemType(itemType))
 	} else {
@@ -67,9 +65,7 @@ func (h *Handler) GetItems(c echo.Context) error {
 
 	if err != nil {
 		h.logger.Error("Failed to get items", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get items",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to get items"))
 	}
 
 	itemResponses := make([]entity.ItemResponse, len(items))
@@ -77,10 +73,7 @@ func (h *Handler) GetItems(c echo.Context) error {
 		itemResponses[i] = item.ToResponse()
 	}
 
-	return c.JSON(http.StatusOK, ListItemsResponse{
-		Items: itemResponses,
-		Total: len(itemResponses),
-	})
+	return c.JSON(http.StatusOK, dto.NewList(itemResponses))
 }
 
 // GetItem godoc
@@ -99,22 +92,16 @@ func (h *Handler) GetItem(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid item ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid item ID", "invalid_request_error"))
 	}
 
 	item, err := h.service.GetItem(id)
 	if err != nil {
 		if errors.Is(err, ErrItemNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Item not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Item"))
 		}
 		h.logger.Error("Failed to get item", zap.Error(err), zap.Int("item_id", id))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get item",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to get item"))
 	}
 
 	return c.JSON(http.StatusOK, item.ToResponse())
@@ -151,17 +138,13 @@ func (h *Handler) GetUserInventory(c echo.Context) error {
 	idParam := c.Param("id")
 	userID, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid user ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid user ID", "invalid_request_error"))
 	}
 
 	inventory, err := h.service.GetUserInventory(userID)
 	if err != nil {
 		h.logger.Error("Failed to get user inventory", zap.Error(err), zap.Int("user_id", userID))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get user inventory",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to get user inventory"))
 	}
 
 	return c.JSON(http.StatusOK, inventory)
@@ -184,29 +167,20 @@ func (h *Handler) GetUserInventory(c echo.Context) error {
 func (h *Handler) CreateItem(c echo.Context) error {
 	var req CreateItemRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	item, err := h.service.CreateItem(req)
 	if err != nil {
 		if errors.Is(err, ErrInvalidItemType) || errors.Is(err, ErrInvalidRarity) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: err.Error(),
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError(err.Error()))
 		}
 		h.logger.Error("Failed to create item", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to create item",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to create item"))
 	}
 
 	return c.JSON(http.StatusCreated, item.ToResponse())
@@ -230,41 +204,28 @@ func (h *Handler) UpdateItem(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid item ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid item ID", "invalid_request_error"))
 	}
 
 	var req UpdateItemRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	item, err := h.service.UpdateItem(id, req)
 	if err != nil {
 		if errors.Is(err, ErrItemNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Item not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Item"))
 		}
 		if errors.Is(err, ErrInvalidItemType) || errors.Is(err, ErrInvalidRarity) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: err.Error(),
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError(err.Error()))
 		}
 		h.logger.Error("Failed to update item", zap.Error(err), zap.Int("item_id", id))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to update item",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to update item"))
 	}
 
 	return c.JSON(http.StatusOK, item.ToResponse())
@@ -287,35 +248,17 @@ func (h *Handler) DeleteItem(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid item ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid item ID", "invalid_request_error"))
 	}
 
 	if err := h.service.DeleteItem(id); err != nil {
 		if errors.Is(err, ErrItemNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Item not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Item"))
 		}
 		h.logger.Error("Failed to delete item", zap.Error(err), zap.Int("item_id", id))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to delete item",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to delete item"))
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(http.StatusOK, dto.NewEmpty(strconv.Itoa(id)))
 }
 
-// Helper function to parse validation errors
-func parseValidationErrors(err error) map[string]string {
-	details := make(map[string]string)
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		for field, message := range validationErrors.Errors {
-			details[field] = message
-		}
-	} else {
-		details["validation"] = err.Error()
-	}
-	return details
-}

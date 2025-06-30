@@ -45,17 +45,13 @@ func (m *Middleware) VerifyAccessToken() echo.MiddlewareFunc {
 		return func(echoCtx echo.Context) error {
 			token := extractTokenFromHeader(echoCtx)
 			if token == "" {
-				return echoCtx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-					Error: "Missing or invalid authorization header",
-				})
+				return echoCtx.JSON(http.StatusUnauthorized, dto.NewAuthError("Missing or invalid authorization header"))
 			}
 
 			claims, err := m.userAuthService.ValidateAccessToken(token)
 			if err != nil {
 				m.logger.Warn("Invalid access token", zap.Error(err))
-				return echoCtx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-					Error: "Invalid or expired token",
-				})
+				return echoCtx.JSON(http.StatusUnauthorized, dto.NewAuthError("Invalid or expired token"))
 			}
 
 			// Set user information in context using type-safe keys

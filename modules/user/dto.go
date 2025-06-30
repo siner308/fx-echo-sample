@@ -23,6 +23,9 @@ type UserResponse struct {
 	Age   int    `json:"age"`
 }
 
+// ListUsersResponse is now replaced by dto.ListResponse[entity.UserResponse]
+// Keeping this for backward compatibility during migration
+// TODO: Remove after all clients updated
 type ListUsersResponse struct {
 	Users []entity.UserResponse `json:"users"`
 	Total int                   `json:"total"`

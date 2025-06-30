@@ -30,13 +30,9 @@ func (h *Handler) GetKeycloakAuthURL(c echo.Context) error {
 	authURL, err := h.service.GetKeycloakAuthURL()
 	if err != nil {
 		if errors.Is(err, ErrKeycloakUnavailable) {
-			return c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{
-				Error: "Keycloak SSO service unavailable",
-			})
+			return c.JSON(http.StatusServiceUnavailable, dto.NewError("Keycloak SSO service unavailable"))
 		}
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to generate auth URL",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to generate auth URL"))
 	}
 
 	return c.JSON(http.StatusOK, KeycloakAuthURLResponse{
@@ -48,38 +44,25 @@ func (h *Handler) GetKeycloakAuthURL(c echo.Context) error {
 func (h *Handler) HandleKeycloakCallback(c echo.Context) error {
 	var req KeycloakCallbackRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	response, err := h.service.HandleKeycloakCallback(c.Request().Context(), req.Code)
 	if err != nil {
 		if errors.Is(err, ErrKeycloakUnavailable) {
-			return c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{
-				Error: "Keycloak SSO service unavailable",
-			})
+			return c.JSON(http.StatusServiceUnavailable, dto.NewError("Keycloak SSO service unavailable"))
 		}
 		if errors.Is(err, ErrInvalidAuthCode) || errors.Is(err, ErrTokenExchange) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: "Invalid authorization code",
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError("Invalid authorization code"))
 		}
 		if errors.Is(err, ErrNotAdminUser) {
-			return c.JSON(http.StatusForbidden, dto.ErrorResponse{
-				Error: "Insufficient permissions - admin access required",
-			})
+			return c.JSON(http.StatusForbidden, dto.NewError("Insufficient permissions - admin access required"))
 		}
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to complete SSO login",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to complete SSO login"))
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -90,16 +73,12 @@ func (h *Handler) GetAdminInfo(c echo.Context) error {
 	// Get admin info from context (set by middleware)
 	adminEmail, ok := GetAdminEmail(c)
 	if !ok {
-		return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "Admin user not found in context",
-		})
+		return c.JSON(http.StatusUnauthorized, dto.NewError("Admin user not found in context"))
 	}
 
 	adminID, ok := GetAdminID(c)
 	if !ok {
-		return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "Admin user ID not found in context",
-		})
+		return c.JSON(http.StatusUnauthorized, dto.NewError("Admin user ID not found in context"))
 	}
 
 	// For simplicity, return admin info from JWT claims
@@ -117,21 +96,4 @@ func (h *Handler) GetAdminInfo(c echo.Context) error {
 	return c.JSON(http.StatusOK, adminInfo)
 }
 
-// Legacy admin login (deprecated)
-func (h *Handler) AdminLogin(c echo.Context) error {
-	return c.JSON(http.StatusGone, dto.ErrorResponse{
-		Error: "Legacy admin login is deprecated. Please use Keycloak SSO instead.",
-		Details: map[string]string{
-			"sso_auth_url": "/auth/admin/sso/auth-url",
-			"callback_url": "/auth/admin/sso/callback",
-		},
-	})
-}
 
-func parseValidationErrors(err error) map[string]string {
-	details := make(map[string]string)
-	if err != nil {
-		details["validation"] = err.Error()
-	}
-	return details
-}

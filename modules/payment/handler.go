@@ -37,18 +37,7 @@ func NewHandler(p HandlerParam) *Handler {
 
 // User APIs
 
-// ProcessPayment godoc
-// @Summary Process payment and grant items
-// @Description Process payment and automatically grant reward items to user
-// @Tags payments
-// @Accept json
-// @Produce json
-// @Param request body CreatePaymentRequest true "Payment request"
-// @Success 200 {object} ProcessPaymentResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/payments [post]
+// ProcessPayment processes payment and grants items to user
 func (h *Handler) ProcessPayment(c echo.Context) error {
 	var req CreatePaymentRequest
 	if err := c.Bind(&req); err != nil {
@@ -73,19 +62,7 @@ func (h *Handler) ProcessPayment(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-// GetPayment godoc
-// @Summary Get payment details
-// @Description Get specific payment by ID
-// @Tags payments
-// @Accept json
-// @Produce json
-// @Param id path int true "Payment ID"
-// @Success 200 {object} entity.PaymentResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/payments/{id} [get]
+// GetPayment retrieves payment details by ID
 func (h *Handler) GetPayment(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -105,19 +82,7 @@ func (h *Handler) GetPayment(c echo.Context) error {
 	return c.JSON(http.StatusOK, payment.ToResponse())
 }
 
-// GetUserPayments godoc
-// @Summary Get user payment history
-// @Description Get payment history for a specific user
-// @Tags payments
-// @Accept json
-// @Produce json
-// @Param id path int true "User ID"
-// @Param status query string false "Filter by payment status"
-// @Success 200 {object} entity.PaymentHistoryResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/users/{id}/payments [get]
+// GetUserPayments retrieves payment history for a specific user
 func (h *Handler) GetUserPayments(c echo.Context) error {
 	idParam := c.Param("id")
 	userID, err := strconv.Atoi(idParam)
@@ -146,18 +111,7 @@ func (h *Handler) GetUserPayments(c echo.Context) error {
 	return c.JSON(http.StatusOK, history)
 }
 
-// GetUserPaymentSummary godoc
-// @Summary Get user payment summary
-// @Description Get payment statistics for a specific user
-// @Tags payments
-// @Accept json
-// @Produce json
-// @Param id path int true "User ID"
-// @Success 200 {object} entity.PaymentSummaryResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/users/{id}/payments/summary [get]
+// GetUserPaymentSummary retrieves payment statistics for a specific user
 func (h *Handler) GetUserPaymentSummary(c echo.Context) error {
 	idParam := c.Param("id")
 	userID, err := strconv.Atoi(idParam)
@@ -176,28 +130,14 @@ func (h *Handler) GetUserPaymentSummary(c echo.Context) error {
 
 // Public APIs
 
-// GetPaymentMethods godoc
-// @Summary Get available payment methods
-// @Description Get list of all available payment methods
-// @Tags payments
-// @Accept json
-// @Produce json
-// @Success 200 {object} PaymentMethodsResponse
-// @Router /api/v1/payments/methods [get]
+// GetPaymentMethods returns all available payment methods
 func (h *Handler) GetPaymentMethods(c echo.Context) error {
 	return c.JSON(http.StatusOK, PaymentMethodsResponse{
 		Methods: h.service.GetPaymentMethods(),
 	})
 }
 
-// GetPaymentStatuses godoc
-// @Summary Get payment status types
-// @Description Get list of all payment status types with descriptions
-// @Tags payments
-// @Accept json
-// @Produce json
-// @Success 200 {object} PaymentStatusesResponse
-// @Router /api/v1/payments/statuses [get]
+// GetPaymentStatuses returns all payment status types with descriptions
 func (h *Handler) GetPaymentStatuses(c echo.Context) error {
 	return c.JSON(http.StatusOK, PaymentStatusesResponse{
 		Statuses: h.service.GetPaymentStatuses(),
@@ -206,20 +146,7 @@ func (h *Handler) GetPaymentStatuses(c echo.Context) error {
 
 // Admin APIs
 
-// UpdatePaymentStatus godoc
-// @Summary Update payment status (Admin only)
-// @Description Update payment status (used by payment webhooks or admin)
-// @Tags admin,payments
-// @Accept json
-// @Produce json
-// @Param id path int true "Payment ID"
-// @Param request body UpdatePaymentStatusRequest true "Status update request"
-// @Success 200 {object} entity.PaymentResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/admin/payments/{id}/status [put]
+// UpdatePaymentStatus updates payment status (admin only)
 func (h *Handler) UpdatePaymentStatus(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -251,20 +178,7 @@ func (h *Handler) UpdatePaymentStatus(c echo.Context) error {
 	return c.JSON(http.StatusOK, payment.ToResponse())
 }
 
-// RefundPayment godoc
-// @Summary Refund payment (Admin only)
-// @Description Refund a completed payment
-// @Tags admin,payments
-// @Accept json
-// @Produce json
-// @Param id path int true "Payment ID"
-// @Param request body RefundPaymentRequest true "Refund request"
-// @Success 200 {object} entity.PaymentResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/admin/payments/{id}/refund [post]
+// RefundPayment refunds a completed payment (admin only)
 func (h *Handler) RefundPayment(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -296,20 +210,7 @@ func (h *Handler) RefundPayment(c echo.Context) error {
 	return c.JSON(http.StatusOK, payment.ToResponse())
 }
 
-// GetAllPayments godoc
-// @Summary Get all payments (Admin only)
-// @Description Get list of all payments with optional filters
-// @Tags admin,payments
-// @Accept json
-// @Produce json
-// @Param status query string false "Filter by payment status"
-// @Param start_date query string false "Start date (YYYY-MM-DD)"
-// @Param end_date query string false "End date (YYYY-MM-DD)"
-// @Success 200 {object} entity.PaymentHistoryResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/admin/payments [get]
+// GetAllPayments retrieves all payments with optional filters (admin only)
 func (h *Handler) GetAllPayments(c echo.Context) error {
 	status := c.QueryParam("status")
 	startDate := c.QueryParam("start_date")
@@ -337,16 +238,7 @@ func (h *Handler) GetAllPayments(c echo.Context) error {
 	return c.JSON(http.StatusOK, history)
 }
 
-// GetPaymentSummary godoc
-// @Summary Get payment summary (Admin only)
-// @Description Get overall payment statistics
-// @Tags admin,payments
-// @Accept json
-// @Produce json
-// @Success 200 {object} entity.PaymentSummaryResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/admin/payments/summary [get]
+// GetPaymentSummary retrieves overall payment statistics (admin only)
 func (h *Handler) GetPaymentSummary(c echo.Context) error {
 	summary, err := h.service.GetPaymentSummary()
 	if err != nil {

@@ -32,18 +32,7 @@ func NewHandler(p HandlerParam) *Handler {
 	}
 }
 
-// GrantReward godoc
-// @Summary Grant reward to user (Admin only)
-// @Description Grant items to a specific user
-// @Tags admin,rewards
-// @Accept json
-// @Produce json
-// @Param request body GrantRewardRequest true "Grant reward request"
-// @Success 200 {object} GrantRewardResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/admin/rewards/grant [post]
+// GrantReward grants reward items to a specific user (Admin only)
 func (h *Handler) GrantReward(c echo.Context) error {
 	var req GrantRewardRequest
 	if err := c.Bind(&req); err != nil {
@@ -68,18 +57,7 @@ func (h *Handler) GrantReward(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-// BulkGrantReward godoc
-// @Summary Grant rewards to multiple users (Admin only)
-// @Description Grant items to multiple users at once
-// @Tags admin,rewards
-// @Accept json
-// @Produce json
-// @Param request body BulkGrantRewardRequest true "Bulk grant reward request"
-// @Success 200 {object} BulkGrantRewardResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/admin/rewards/bulk-grant [post]
+// BulkGrantReward grants reward items to multiple users at once (Admin only)
 func (h *Handler) BulkGrantReward(c echo.Context) error {
 	var req BulkGrantRewardRequest
 	if err := c.Bind(&req); err != nil {
@@ -112,14 +90,7 @@ func (h *Handler) BulkGrantReward(c echo.Context) error {
 	return c.JSON(statusCode, response)
 }
 
-// GetRewardSources godoc
-// @Summary Get available reward sources
-// @Description Get list of all available reward sources with descriptions
-// @Tags rewards
-// @Accept json
-// @Produce json
-// @Success 200 {object} map[string]string
-// @Router /api/v1/rewards/sources [get]
+// GetRewardSources returns a list of all available reward sources with descriptions
 func (h *Handler) GetRewardSources(c echo.Context) error {
 	sources := map[string]string{
 		RewardSourceAdmin:        GetRewardSourceDescription(RewardSourceAdmin),

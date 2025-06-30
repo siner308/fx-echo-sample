@@ -37,6 +37,7 @@ func NewHandler(p HandlerParam) *Handler {
 	}
 }
 
+// CreateCoupon creates a new coupon
 func (h *Handler) CreateCoupon(c echo.Context) error {
 	var req CreateCouponRequest
 	if err := c.Bind(&req); err != nil {
@@ -58,6 +59,7 @@ func (h *Handler) CreateCoupon(c echo.Context) error {
 	return c.JSON(http.StatusCreated, coupon.ToResponse())
 }
 
+// GetCoupon retrieves coupon details by ID
 func (h *Handler) GetCoupon(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -76,6 +78,7 @@ func (h *Handler) GetCoupon(c echo.Context) error {
 	return c.JSON(http.StatusOK, coupon.ToResponse())
 }
 
+// UpdateCoupon updates an existing coupon
 func (h *Handler) UpdateCoupon(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -106,6 +109,7 @@ func (h *Handler) UpdateCoupon(c echo.Context) error {
 	return c.JSON(http.StatusOK, coupon.ToResponse())
 }
 
+// DeleteCoupon deletes a coupon by ID
 func (h *Handler) DeleteCoupon(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -124,6 +128,7 @@ func (h *Handler) DeleteCoupon(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// ListCoupons retrieves all coupons with optional status filter
 func (h *Handler) ListCoupons(c echo.Context) error {
 	status := c.QueryParam("status")
 
@@ -154,19 +159,7 @@ func (h *Handler) ListCoupons(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-// RedeemCoupon godoc
-// @Summary Redeem coupon for discount and/or items
-// @Description Redeem a coupon to receive discount and/or reward items
-// @Tags coupons
-// @Accept json
-// @Produce json
-// @Param request body RedeemCouponRequest true "Redeem coupon request"
-// @Success 200 {object} entity.RedeemCouponResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/coupons/redeem [post]
+// RedeemCoupon redeems a coupon for discount and/or reward items
 func (h *Handler) RedeemCoupon(c echo.Context) error {
 	var req RedeemCouponRequest
 	if err := c.Bind(&req); err != nil {

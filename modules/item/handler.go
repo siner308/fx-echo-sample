@@ -37,17 +37,7 @@ func NewHandler(p HandlerParam) *Handler {
 
 // Public APIs
 
-// GetItems godoc
-// @Summary Get all items
-// @Description Get list of all available items
-// @Tags items
-// @Accept json
-// @Produce json
-// @Param type query string false "Filter by item type"
-// @Success 200 {object} ListItemsResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Router /api/v1/items [get]
+// GetItems returns all items, optionally filtered by type
 func (h *Handler) GetItems(c echo.Context) error {
 	itemType := c.QueryParam("type")
 	
@@ -76,18 +66,7 @@ func (h *Handler) GetItems(c echo.Context) error {
 	return c.JSON(http.StatusOK, dto.NewList(itemResponses))
 }
 
-// GetItem godoc
-// @Summary Get item by ID
-// @Description Get specific item by ID
-// @Tags items
-// @Accept json
-// @Produce json
-// @Param id path int true "Item ID"
-// @Success 200 {object} entity.ItemResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Router /api/v1/items/{id} [get]
+// GetItem returns a specific item by ID
 func (h *Handler) GetItem(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -107,33 +86,14 @@ func (h *Handler) GetItem(c echo.Context) error {
 	return c.JSON(http.StatusOK, item.ToResponse())
 }
 
-// GetItemTypes godoc
-// @Summary Get all item types
-// @Description Get list of all available item types with descriptions
-// @Tags items
-// @Accept json
-// @Produce json
-// @Success 200 {object} ItemTypesResponse
-// @Router /api/v1/items/types [get]
+// GetItemTypes returns all available item types
 func (h *Handler) GetItemTypes(c echo.Context) error {
 	return c.JSON(http.StatusOK, ItemTypesResponse{
 		Types: h.service.GetItemTypes(),
 	})
 }
 
-// GetUserInventory godoc
-// @Summary Get user inventory
-// @Description Get inventory for a specific user
-// @Tags inventory
-// @Accept json
-// @Produce json
-// @Param id path int true "User ID"
-// @Success 200 {object} entity.UserInventoryResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/users/{id}/inventory [get]
+// GetUserInventory returns inventory for a specific user
 func (h *Handler) GetUserInventory(c echo.Context) error {
 	idParam := c.Param("id")
 	userID, err := strconv.Atoi(idParam)
@@ -152,18 +112,7 @@ func (h *Handler) GetUserInventory(c echo.Context) error {
 
 // Admin APIs
 
-// CreateItem godoc
-// @Summary Create new item (Admin only)
-// @Description Create a new item in the system
-// @Tags admin,items
-// @Accept json
-// @Produce json
-// @Param request body CreateItemRequest true "Create item request"
-// @Success 201 {object} entity.ItemResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/admin/items [post]
+// CreateItem creates a new item (admin only)
 func (h *Handler) CreateItem(c echo.Context) error {
 	var req CreateItemRequest
 	if err := c.Bind(&req); err != nil {
@@ -186,20 +135,7 @@ func (h *Handler) CreateItem(c echo.Context) error {
 	return c.JSON(http.StatusCreated, item.ToResponse())
 }
 
-// UpdateItem godoc
-// @Summary Update item (Admin only)
-// @Description Update an existing item
-// @Tags admin,items
-// @Accept json
-// @Produce json
-// @Param id path int true "Item ID"
-// @Param request body UpdateItemRequest true "Update item request"
-// @Success 200 {object} entity.ItemResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/admin/items/{id} [put]
+// UpdateItem updates an existing item (admin only)
 func (h *Handler) UpdateItem(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -231,19 +167,7 @@ func (h *Handler) UpdateItem(c echo.Context) error {
 	return c.JSON(http.StatusOK, item.ToResponse())
 }
 
-// DeleteItem godoc
-// @Summary Delete item (Admin only)
-// @Description Soft delete an item (mark as inactive)
-// @Tags admin,items
-// @Accept json
-// @Produce json
-// @Param id path int true "Item ID"
-// @Success 204
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Security BearerAuth
-// @Router /api/v1/admin/items/{id} [delete]
+// DeleteItem soft deletes an item (admin only)
 func (h *Handler) DeleteItem(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)

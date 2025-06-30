@@ -32,18 +32,7 @@ func NewHandler(p HandlerParam) *Handler {
 	}
 }
 
-// Login godoc
-// @Summary User login
-// @Description Authenticate user and return tokens
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body LoginRequest true "Login request"
-// @Success 200 {object} LoginResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 401 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Router /api/v1/auth/login [post]
+// Login authenticates user and returns access tokens
 func (h *Handler) Login(c echo.Context) error {
 	var req LoginRequest
 	if err := c.Bind(&req); err != nil {
@@ -66,18 +55,7 @@ func (h *Handler) Login(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-// RefreshToken godoc
-// @Summary Refresh access token
-// @Description Get new access token using refresh token
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body RefreshTokenRequest true "Refresh token request"
-// @Success 200 {object} RefreshResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 401 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Router /api/v1/auth/refresh [post]
+// RefreshToken generates new access token using refresh token
 func (h *Handler) RefreshToken(c echo.Context) error {
 	var req RefreshTokenRequest
 	if err := c.Bind(&req); err != nil {

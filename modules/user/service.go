@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+
 	"fxserver/modules/user/entity"
 	"fxserver/modules/user/repository"
 

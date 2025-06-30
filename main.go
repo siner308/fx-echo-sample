@@ -2,6 +2,7 @@ package main
 
 import (
 	"fxserver/middleware"
+	"fxserver/modules/coupon"
 	"fxserver/modules/user"
 	"fxserver/pkg/validator"
 	"fxserver/server"
@@ -21,6 +22,7 @@ func main() {
 			server.NewEchoServer,
 		),
 		user.Module,
+		coupon.Module,
 		fx.Invoke(func(s *server.EchoServer) {
 			// Server will be started by lifecycle hooks
 		}),

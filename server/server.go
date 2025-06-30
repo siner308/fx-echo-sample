@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"fxserver/middleware"
+	"fxserver/modules/coupon"
 	"fxserver/modules/user"
 
 	"github.com/labstack/echo/v4"
@@ -23,6 +24,7 @@ func NewEchoServer(
 	loggerMiddleware *middleware.LoggerMiddleware,
 	errorMiddleware *middleware.ErrorMiddleware,
 	userHandler *user.Handler,
+	couponHandler *coupon.Handler,
 ) *EchoServer {
 	e := echo.New()
 
@@ -33,7 +35,7 @@ func NewEchoServer(
 	e.Use(loggerMiddleware.LoggerMiddleware())
 
 	// Setup routes
-	setupRoutes(e, userHandler)
+	setupRoutes(e, userHandler, couponHandler)
 
 	server := &EchoServer{
 		echo: e,
@@ -63,13 +65,24 @@ func (s *EchoServer) Stop(ctx context.Context) error {
 	return s.echo.Shutdown(ctx)
 }
 
-func setupRoutes(e *echo.Echo, userHandler *user.Handler) {
+func setupRoutes(e *echo.Echo, userHandler *user.Handler, couponHandler *coupon.Handler) {
 	api := e.Group("/api/v1")
 
+	// User routes
 	users := api.Group("/users")
 	users.POST("", userHandler.CreateUser)
 	users.GET("/:id", userHandler.GetUser)
 	users.PUT("/:id", userHandler.UpdateUser)
 	users.DELETE("/:id", userHandler.DeleteUser)
 	users.GET("", userHandler.ListUsers)
+
+	// Coupon routes
+	coupons := api.Group("/coupons")
+	coupons.POST("", couponHandler.CreateCoupon)
+	coupons.GET("/:id", couponHandler.GetCoupon)
+	coupons.GET("/code/:code", couponHandler.GetCouponByCode)
+	coupons.PUT("/:id", couponHandler.UpdateCoupon)
+	coupons.DELETE("/:id", couponHandler.DeleteCoupon)
+	coupons.GET("", couponHandler.ListCoupons)
+	coupons.POST("/use", couponHandler.UseCoupon)
 }

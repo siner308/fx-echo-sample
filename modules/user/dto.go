@@ -10,9 +10,10 @@ type CreateUserRequest struct {
 }
 
 type UpdateUserRequest struct {
-	Name  string `json:"name,omitempty" validate:"omitempty,min=2,max=100"`
-	Email string `json:"email,omitempty" validate:"omitempty,email"`
-	Age   int    `json:"age,omitempty" validate:"omitempty,min=1,max=150"`
+	Name     string `json:"name,omitempty" validate:"omitempty,min=2,max=100"`
+	Email    string `json:"email,omitempty" validate:"omitempty,email"`
+	Age      int    `json:"age,omitempty" validate:"omitempty,min=1,max=150"`
+	Password string `json:"password,omitempty" validate:"omitempty,min=8"`
 }
 
 type UserResponse struct {

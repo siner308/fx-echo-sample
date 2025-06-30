@@ -5,6 +5,7 @@ import (
 
 	"fxserver/modules/user/entity"
 	"fxserver/modules/user/repository"
+	"fxserver/pkg/security"
 
 	"go.uber.org/zap"
 )
@@ -15,6 +16,7 @@ type Service interface {
 	UpdateUser(id int, req UpdateUserRequest) (*entity.User, error)
 	DeleteUser(id int) error
 	ListUsers() ([]*entity.User, error)
+	VerifyUserPassword(email, password string) (*entity.User, error)
 }
 
 type service struct {
@@ -30,11 +32,18 @@ func NewService(repo repository.UserRepository, logger *zap.Logger) Service {
 }
 
 func (s *service) CreateUser(req CreateUserRequest) (*entity.User, error) {
+	// Hash the password before storing
+	hashedPassword, err := security.HashPassword(req.Password, nil)
+	if err != nil {
+		s.logger.Error("Failed to hash password", zap.Error(err))
+		return nil, errors.New("failed to process password")
+	}
+
 	user := &entity.User{
 		Name:     req.Name,
 		Email:    req.Email,
 		Age:      req.Age,
-		Password: req.Password, // In real app, hash this
+		Password: hashedPassword,
 	}
 
 	if err := s.repo.Create(user); err != nil {
@@ -85,6 +94,15 @@ func (s *service) UpdateUser(id int, req UpdateUserRequest) (*entity.User, error
 	if req.Age != 0 {
 		existingUser.Age = req.Age
 	}
+	if req.Password != "" {
+		// Hash the new password
+		hashedPassword, err := security.HashPassword(req.Password, nil)
+		if err != nil {
+			s.logger.Error("Failed to hash password during update", zap.Error(err))
+			return nil, errors.New("failed to process password")
+		}
+		existingUser.Password = hashedPassword
+	}
 
 	if err := s.repo.Update(existingUser); err != nil {
 		if errors.Is(err, repository.ErrUserExists) {
@@ -121,4 +139,31 @@ func (s *service) ListUsers() ([]*entity.User, error) {
 	}
 
 	return users, nil
+}
+
+// VerifyUserPassword verifies user credentials by email and password
+func (s *service) VerifyUserPassword(email, password string) (*entity.User, error) {
+	user, err := s.repo.GetByEmail(email)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			s.logger.Warn("Login attempt with non-existent email", zap.String("email", email))
+			return nil, errors.New("invalid credentials")
+		}
+		s.logger.Error("Failed to get user by email", zap.String("email", email), zap.Error(err))
+		return nil, errors.New("authentication failed")
+	}
+
+	// Verify password
+	isValid, err := security.VerifyPassword(password, user.Password)
+	if err != nil {
+		s.logger.Error("Failed to verify password", zap.Error(err))
+		return nil, errors.New("authentication failed")
+	}
+
+	if !isValid {
+		s.logger.Warn("Invalid password attempt", zap.String("email", email))
+		return nil, errors.New("invalid credentials")
+	}
+
+	return user, nil
 }

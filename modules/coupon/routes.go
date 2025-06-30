@@ -42,5 +42,5 @@ func (r *Routes) RegisterRoutes(e *echo.Echo) {
 	coupons.DELETE("/:id", r.handler.DeleteCoupon, r.adminMiddleware.VerifyAdminToken())
 
 	// User routes (coupon usage)
-	coupons.POST("/use", r.handler.UseCoupon, r.userMiddleware.VerifyAccessToken()) // User: use coupon
+	coupons.POST("/redeem", r.handler.RedeemCoupon, r.userMiddleware.VerifyAccessToken()) // User: redeem coupon
 }

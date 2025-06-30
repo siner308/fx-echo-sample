@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"fxserver/modules/coupon/entity"
 	"fxserver/modules/coupon/repository"
@@ -11,20 +12,28 @@ import (
 	"fxserver/pkg/validator"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
 type Handler struct {
 	service   Service
-	validator *validator.Validator
+	validator validator.Validator
 	logger    *zap.Logger
 }
 
-func NewHandler(service Service, validator *validator.Validator, logger *zap.Logger) *Handler {
+type HandlerParam struct {
+	fx.In
+	Service   Service
+	Validator validator.Validator
+	Logger    *zap.Logger
+}
+
+func NewHandler(p HandlerParam) *Handler {
 	return &Handler{
-		service:   service,
-		validator: validator,
-		logger:    logger,
+		service:   p.Service,
+		validator: p.Validator,
+		logger:    p.Logger,
 	}
 }
 
@@ -181,8 +190,21 @@ func (h *Handler) ListCoupons(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) UseCoupon(c echo.Context) error {
-	var req UseCouponRequest
+// RedeemCoupon godoc
+// @Summary Redeem coupon for discount and/or items
+// @Description Redeem a coupon to receive discount and/or reward items
+// @Tags coupons
+// @Accept json
+// @Produce json
+// @Param request body RedeemCouponRequest true "Redeem coupon request"
+// @Success 200 {object} entity.RedeemCouponResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/coupons/redeem [post]
+func (h *Handler) RedeemCoupon(c echo.Context) error {
+	var req RedeemCouponRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error: "Invalid request format",
@@ -196,21 +218,16 @@ func (h *Handler) UseCoupon(c echo.Context) error {
 		})
 	}
 
-	response, err := h.service.UseCoupon(req)
+	response, err := h.service.RedeemCoupon(req)
 	if err != nil {
-		if errors.Is(err, repository.ErrCouponNotFound) {
+		if errors.Is(err, ErrCouponNotFound) {
 			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
 				Error: "Coupon not found",
 			})
 		}
-		if errors.Is(err, repository.ErrCouponNotUsable) {
+		if errors.Is(err, ErrCouponNotUsable) {
 			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 				Error: "Coupon is not usable (expired or inactive)",
-			})
-		}
-		if errors.Is(err, repository.ErrCouponAlreadyUsed) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: "Coupon has already been used",
 			})
 		}
 		if errors.Is(err, ErrInvalidOrderAmount) {
@@ -218,13 +235,32 @@ func (h *Handler) UseCoupon(c echo.Context) error {
 				Error: "Invalid order amount",
 			})
 		}
-		if err.Error() == "order amount does not meet minimum requirement" {
+		// Handle specific error messages from service
+		errorMsg := err.Error()
+		if errorMsg == "coupon already used" {
 			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: "Order amount does not meet minimum requirement",
+				Error: "Coupon has already been used",
 			})
 		}
+		if strings.Contains(errorMsg, "order amount does not meet minimum requirement") {
+			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Error: errorMsg,
+			})
+		}
+		if strings.Contains(errorMsg, "order amount is required") {
+			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Error: errorMsg,
+			})
+		}
+		if strings.Contains(errorMsg, "failed to grant reward items") {
+			return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				Error: "Failed to grant reward items",
+			})
+		}
+		
+		h.logger.Error("Failed to redeem coupon", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to use coupon",
+			Error: "Failed to redeem coupon",
 		})
 	}
 

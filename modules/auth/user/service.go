@@ -2,8 +2,6 @@ package user
 
 import (
 	"errors"
-	"fxserver/modules/user/entity"
-	"fxserver/modules/user/repository"
 	"fxserver/pkg/jwt"
 
 	"go.uber.org/fx"
@@ -16,11 +14,23 @@ var (
 	ErrInvalidRefreshToken = errors.New("invalid refresh token")
 )
 
+// PasswordVerifier is an interface to break circular dependency
+type PasswordVerifier interface {
+	VerifyUserPassword(email, password string) (UserInfo, error)
+}
+
+// UserInfo contains basic user information needed for authentication
+type UserInfo struct {
+	ID    int
+	Email string
+	Name  string
+}
+
 type Param struct {
 	fx.In
 	AccessTokenService  jwt.Service `name:"access_token"`
 	RefreshTokenService jwt.Service `name:"refresh_token"`
-	UserRepository      repository.UserRepository
+	PasswordVerifier    PasswordVerifier
 	Logger              *zap.Logger
 }
 
@@ -34,7 +44,7 @@ type Service interface {
 type service struct {
 	accessTokenService  jwt.Service
 	refreshTokenService jwt.Service
-	userRepository      repository.UserRepository
+	passwordVerifier    PasswordVerifier
 	logger              *zap.Logger
 }
 
@@ -42,50 +52,26 @@ func NewService(p Param) Service {
 	return &service{
 		accessTokenService:  p.AccessTokenService,
 		refreshTokenService: p.RefreshTokenService,
-		userRepository:      p.UserRepository,
+		passwordVerifier:    p.PasswordVerifier,
 		logger:              p.Logger,
 	}
 }
 
 func (s *service) Login(email, password string) (*LoginResponse, error) {
-	// In a real implementation, you would:
-	// 1. Get user by email
-	// 2. Verify password hash
-	// For this demo, we'll simulate with existing user data
-	
-	users, err := s.userRepository.GetAll()
+	// Use the password verifier interface to verify credentials
+	userInfo, err := s.passwordVerifier.VerifyUserPassword(email, password)
 	if err != nil {
-		s.logger.Error("Failed to list users for login", zap.Error(err))
-		return nil, err
-	}
-
-	var user *entity.User
-	for _, u := range users {
-		if u.Email == email {
-			user = u
-			break
-		}
-	}
-
-	if user == nil {
-		s.logger.Warn("Login attempt with non-existent email", zap.String("email", email))
-		return nil, ErrUserNotFound
-	}
-
-	// In real implementation, verify password hash
-	// For demo, we'll just check if password is not empty
-	if password == "" {
-		s.logger.Warn("Login attempt with empty password", zap.String("email", email))
+		s.logger.Warn("Login failed", zap.String("email", email), zap.Error(err))
 		return nil, ErrInvalidCredentials
 	}
 
-	accessToken, err := s.accessTokenService.GenerateToken(user.ID, user.Email)
+	accessToken, err := s.accessTokenService.GenerateToken(userInfo.ID, userInfo.Email)
 	if err != nil {
 		s.logger.Error("Failed to generate access token", zap.Error(err))
 		return nil, err
 	}
 
-	refreshToken, err := s.refreshTokenService.GenerateToken(user.ID, user.Email)
+	refreshToken, err := s.refreshTokenService.GenerateToken(userInfo.ID, userInfo.Email)
 	if err != nil {
 		s.logger.Error("Failed to generate refresh token", zap.Error(err))
 		return nil, err
@@ -95,10 +81,14 @@ func (s *service) Login(email, password string) (*LoginResponse, error) {
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    int64(s.accessTokenService.GetExpirationTime().Seconds()),
-		User:         user.ToResponse(),
+		User: UserResponse{
+			ID:    userInfo.ID,
+			Name:  userInfo.Name,
+			Email: userInfo.Email,
+		},
 	}
 
-	s.logger.Info("User logged in successfully", zap.Int("user_id", user.ID), zap.String("email", email))
+	s.logger.Info("User logged in successfully", zap.Int("user_id", userInfo.ID), zap.String("email", email))
 	return response, nil
 }
 

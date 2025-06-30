@@ -8,6 +8,14 @@ type Validator struct {
 	validator *validator.Validate
 }
 
+type ValidationErrors struct {
+	Errors map[string]string
+}
+
+func (ve ValidationErrors) Error() string {
+	return "validation failed"
+}
+
 func New() *Validator {
 	return &Validator{
 		validator: validator.New(),
@@ -15,5 +23,18 @@ func New() *Validator {
 }
 
 func (v *Validator) Validate(i interface{}) error {
-	return v.validator.Struct(i)
+	err := v.validator.Struct(i)
+	if err != nil {
+		// Convert validator errors to our custom format
+		errors := make(map[string]string)
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			for _, validationError := range validationErrors {
+				errors[validationError.Field()] = validationError.Tag()
+			}
+		} else {
+			errors["validation"] = err.Error()
+		}
+		return ValidationErrors{Errors: errors}
+	}
+	return nil
 }

@@ -12,6 +12,7 @@ var Module = fx.Options(
 	fx.Provide(
 		NewService,
 		NewHandler,
+		NewAuthAdapter,
 		fx.Annotate(
 			NewRoutes,
 			fx.As(new(router.RouteRegistrar)),

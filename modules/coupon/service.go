@@ -2,16 +2,23 @@ package coupon
 
 import (
 	"errors"
-	"fxserver/modules/coupon/entity"
-	"fxserver/modules/coupon/repository"
+	"fmt"
 	"time"
 
+	"fxserver/modules/coupon/entity"
+	"fxserver/modules/coupon/repository"
+	"fxserver/modules/reward"
+
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
 var (
-	ErrInvalidCouponData = errors.New("invalid coupon data")
+	ErrInvalidCouponData  = errors.New("invalid coupon data")
 	ErrInvalidOrderAmount = errors.New("invalid order amount")
+	ErrCouponNotFound     = errors.New("coupon not found")
+	ErrCouponNotUsable    = errors.New("coupon not usable")
+	ErrInvalidRewardType  = errors.New("invalid reward type")
 )
 
 type Service interface {
@@ -22,22 +29,53 @@ type Service interface {
 	DeleteCoupon(id int) error
 	ListCoupons() ([]*entity.Coupon, error)
 	ListCouponsByStatus(status entity.CouponStatus) ([]*entity.Coupon, error)
-	UseCoupon(req UseCouponRequest) (*entity.UseCouponResponse, error)
+	RedeemCoupon(req RedeemCouponRequest) (*entity.RedeemCouponResponse, error)
 }
 
 type service struct {
-	repo   repository.CouponRepository
-	logger *zap.Logger
+	repo          repository.CouponRepository
+	rewardService reward.Service
+	logger        *zap.Logger
 }
 
-func NewService(repo repository.CouponRepository, logger *zap.Logger) Service {
+type ServiceParam struct {
+	fx.In
+	Repository    repository.CouponRepository
+	RewardService reward.Service
+	Logger        *zap.Logger
+}
+
+func NewService(p ServiceParam) Service {
 	return &service{
-		repo:   repo,
-		logger: logger,
+		repo:          p.Repository,
+		rewardService: p.RewardService,
+		logger:        p.Logger,
 	}
 }
 
 func (s *service) CreateCoupon(req CreateCouponRequest) (*entity.Coupon, error) {
+	// Validate reward type
+	if !entity.IsValidRewardType(string(req.RewardType)) {
+		return nil, ErrInvalidRewardType
+	}
+
+	// Validate reward type and required fields
+	if req.RewardType == entity.RewardTypeDiscountOnly || req.RewardType == entity.RewardTypeBoth {
+		if req.DiscountType == "" || req.DiscountValue <= 0 {
+			return nil, fmt.Errorf("discount type and value are required for discount rewards")
+		}
+	}
+
+	if req.RewardType == entity.RewardTypeItemsOnly || req.RewardType == entity.RewardTypeBoth {
+		if len(req.RewardItems) == 0 {
+			return nil, fmt.Errorf("reward items are required for item rewards")
+		}
+		// Validate reward items
+		if err := s.rewardService.ValidateRewardItems(req.RewardItems); err != nil {
+			return nil, fmt.Errorf("invalid reward items: %w", err)
+		}
+	}
+
 	coupon := &entity.Coupon{
 		Code:           req.Code,
 		Name:           req.Name,
@@ -46,7 +84,10 @@ func (s *service) CreateCoupon(req CreateCouponRequest) (*entity.Coupon, error) 
 		DiscountValue:  req.DiscountValue,
 		MinOrderAmount: req.MinOrderAmount,
 		MaxDiscount:    req.MaxDiscount,
+		RewardType:     req.RewardType,
+		RewardItems:    req.RewardItems,
 		ExpiresAt:      req.ExpiresAt,
+		Status:         entity.CouponStatusActive,
 	}
 
 	if err := s.repo.Create(coupon); err != nil {
@@ -179,18 +220,15 @@ func (s *service) ListCouponsByStatus(status entity.CouponStatus) ([]*entity.Cou
 	return coupons, nil
 }
 
-func (s *service) UseCoupon(req UseCouponRequest) (*entity.UseCouponResponse, error) {
-	if req.OrderAmount <= 0 {
-		return nil, ErrInvalidOrderAmount
-	}
-
+func (s *service) RedeemCoupon(req RedeemCouponRequest) (*entity.RedeemCouponResponse, error) {
+	// Get coupon by code
 	coupon, err := s.repo.GetByCode(req.Code)
 	if err != nil {
 		if errors.Is(err, repository.ErrCouponNotFound) {
-			s.logger.Warn("Coupon not found for use", zap.String("code", req.Code))
-			return nil, err
+			s.logger.Warn("Coupon not found for redemption", zap.String("code", req.Code))
+			return nil, ErrCouponNotFound
 		}
-		s.logger.Error("Failed to get coupon for use", zap.String("code", req.Code), zap.Error(err))
+		s.logger.Error("Failed to get coupon for redemption", zap.String("code", req.Code), zap.Error(err))
 		return nil, err
 	}
 
@@ -200,23 +238,49 @@ func (s *service) UseCoupon(req UseCouponRequest) (*entity.UseCouponResponse, er
 			zap.String("code", req.Code), 
 			zap.String("status", string(coupon.Status)),
 			zap.Bool("expired", coupon.IsExpired()))
-		return nil, repository.ErrCouponNotUsable
+		return nil, ErrCouponNotUsable
 	}
 
 	// Check if coupon is already used
 	if coupon.Status == entity.CouponStatusUsed {
 		s.logger.Warn("Coupon already used", zap.String("code", req.Code))
-		return nil, repository.ErrCouponAlreadyUsed
+		return nil, errors.New("coupon already used")
 	}
 
-	// Calculate discount
-	discountAmount := coupon.CalculateDiscount(req.OrderAmount)
-	if discountAmount == 0 {
-		s.logger.Warn("Order amount does not meet minimum requirement", 
-			zap.String("code", req.Code),
-			zap.Float64("order_amount", req.OrderAmount),
-			zap.Float64("min_order_amount", coupon.MinOrderAmount))
-		return nil, errors.New("order amount does not meet minimum requirement")
+	var discountAmount float64
+	var message string
+
+	// Handle discount processing
+	if coupon.HasDiscount() {
+		if req.OrderAmount <= 0 {
+			return nil, fmt.Errorf("order amount is required for discount coupons")
+		}
+		
+		discountAmount = coupon.CalculateDiscount(req.OrderAmount)
+		if discountAmount == 0 {
+			s.logger.Warn("Order amount does not meet minimum requirement", 
+				zap.String("code", req.Code),
+				zap.Float64("order_amount", req.OrderAmount),
+				zap.Float64("min_order_amount", coupon.MinOrderAmount))
+			return nil, fmt.Errorf("order amount does not meet minimum requirement of %.2f", coupon.MinOrderAmount)
+		}
+	}
+
+	// Handle item rewards
+	if coupon.HasRewardItems() {
+		// Grant reward items through reward service
+		if err := s.rewardService.GrantItemsToUser(
+			req.UserID, 
+			coupon.RewardItems, 
+			reward.RewardSourceCoupon,
+			fmt.Sprintf("Coupon redemption: %s", coupon.Name),
+		); err != nil {
+			s.logger.Error("Failed to grant reward items", 
+				zap.String("code", req.Code),
+				zap.Int("user_id", req.UserID),
+				zap.Error(err))
+			return nil, fmt.Errorf("failed to grant reward items: %w", err)
+		}
 	}
 
 	// Mark coupon as used
@@ -230,17 +294,31 @@ func (s *service) UseCoupon(req UseCouponRequest) (*entity.UseCouponResponse, er
 		return nil, err
 	}
 
-	response := &entity.UseCouponResponse{
+	// Prepare response message
+	if coupon.HasDiscount() && coupon.HasRewardItems() {
+		message = fmt.Sprintf("Coupon redeemed successfully! Received %.2f discount and %d reward items", discountAmount, len(coupon.RewardItems))
+	} else if coupon.HasDiscount() {
+		message = fmt.Sprintf("Coupon redeemed successfully! Received %.2f discount", discountAmount)
+	} else if coupon.HasRewardItems() {
+		message = fmt.Sprintf("Coupon redeemed successfully! Received %d reward items", len(coupon.RewardItems))
+	} else {
+		message = "Coupon redeemed successfully!"
+	}
+
+	response := &entity.RedeemCouponResponse{
 		CouponID:       coupon.ID,
 		Code:           coupon.Code,
 		DiscountAmount: discountAmount,
+		RewardItems:    coupon.RewardItems,
 		UsedAt:         now,
+		Message:        message,
 	}
 
-	s.logger.Info("Coupon used successfully", 
+	s.logger.Info("Coupon redeemed successfully", 
 		zap.String("code", req.Code),
 		zap.Int("user_id", req.UserID),
-		zap.Float64("discount_amount", discountAmount))
+		zap.Float64("discount_amount", discountAmount),
+		zap.Int("reward_items_count", len(coupon.RewardItems)))
 
 	return response, nil
 }

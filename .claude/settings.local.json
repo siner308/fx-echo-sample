@@ -8,7 +8,9 @@
       "Bash(mv:*)",
       "Bash(git add:*)",
       "Bash(git reset:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(rg:*)",
+      "Bash(go test:*)"
     ],
     "deny": []
   }

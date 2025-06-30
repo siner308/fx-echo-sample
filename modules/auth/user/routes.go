@@ -23,7 +23,7 @@ func NewRoutes(p RoutesParam) router.RouteRegistrar {
 }
 
 func (r *Routes) RegisterRoutes(e *echo.Echo) {
-	auth := e.Group("/auth")
+	auth := e.Group("/api/v1/auth")
 
 	// Public user auth routes
 	auth.POST("/login", r.handler.Login)

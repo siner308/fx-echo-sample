@@ -1,8 +1,9 @@
 package middleware
 
 import (
-	"fxserver/pkg/dto"
 	"net/http"
+
+	"fxserver/pkg/dto"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -20,24 +21,17 @@ func NewErrorMiddleware(logger *zap.Logger) *ErrorMiddleware {
 
 func (em *ErrorMiddleware) ErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
-		if c.Response().Committed {
-			return
-		}
-
-		var (
-			code = http.StatusInternalServerError
-			msg  = "Internal Server Error"
-		)
+		code := http.StatusInternalServerError
+		message := "Internal server error"
 
 		if he, ok := err.(*echo.HTTPError); ok {
 			code = he.Code
-			if he.Message != nil {
-				if s, ok := he.Message.(string); ok {
-					msg = s
-				}
+			if msg, ok := he.Message.(string); ok {
+				message = msg
 			}
 		}
 
+		// Log the error
 		em.logger.Error("HTTP error occurred",
 			zap.Error(err),
 			zap.Int("status_code", code),
@@ -46,12 +40,16 @@ func (em *ErrorMiddleware) ErrorHandler() echo.HTTPErrorHandler {
 			zap.String("remote_ip", c.RealIP()),
 		)
 
-		errorResponse := dto.ErrorResponse{
-			Error: msg,
-		}
-
+		// Send error response
 		if !c.Response().Committed {
-			if err := c.JSON(code, errorResponse); err != nil {
+			if c.Request().Method == http.MethodHead {
+				err = c.NoContent(code)
+			} else {
+				err = c.JSON(code, dto.ErrorResponse{
+					Error: message,
+				})
+			}
+			if err != nil {
 				em.logger.Error("Failed to send error response", zap.Error(err))
 			}
 		}

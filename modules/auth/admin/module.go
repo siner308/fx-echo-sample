@@ -1,17 +1,18 @@
-package user
+package admin
 
 import (
-	"fxserver/modules/user/repository"
+	"fxserver/pkg/keycloak"
 	"fxserver/pkg/router"
 
 	"go.uber.org/fx"
 )
 
 var Module = fx.Options(
-	repository.Module,
 	fx.Provide(
+		keycloak.NewKeycloakClient,
 		NewService,
 		NewHandler,
+		NewMiddleware,
 		fx.Annotate(
 			NewRoutes,
 			fx.As(new(router.RouteRegistrar)),

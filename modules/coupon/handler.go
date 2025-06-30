@@ -82,29 +82,6 @@ func (h *Handler) GetCoupon(c echo.Context) error {
 	return c.JSON(http.StatusOK, coupon.ToResponse())
 }
 
-func (h *Handler) GetCouponByCode(c echo.Context) error {
-	code := c.Param("code")
-	if code == "" {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Coupon code is required",
-		})
-	}
-
-	coupon, err := h.service.GetCouponByCode(code)
-	if err != nil {
-		if errors.Is(err, repository.ErrCouponNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Coupon not found",
-			})
-		}
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get coupon",
-		})
-	}
-
-	return c.JSON(http.StatusOK, coupon.ToResponse())
-}
-
 func (h *Handler) UpdateCoupon(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -174,7 +151,7 @@ func (h *Handler) DeleteCoupon(c echo.Context) error {
 
 func (h *Handler) ListCoupons(c echo.Context) error {
 	status := c.QueryParam("status")
-	
+
 	var coupons []*entity.Coupon
 	var err error
 

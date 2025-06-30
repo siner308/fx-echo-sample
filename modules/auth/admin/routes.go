@@ -28,4 +28,7 @@ func (r *Routes) RegisterRoutes(e *echo.Echo) {
 	// Keycloak SSO routes
 	auth.GET("/sso/auth-url", r.handler.GetKeycloakAuthURL)
 	auth.POST("/sso/callback", r.handler.HandleKeycloakCallback)
+	
+	// Admin user info route (requires admin token)
+	auth.GET("/me", r.handler.GetAdminInfo)
 }

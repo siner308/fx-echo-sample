@@ -34,6 +34,7 @@ type Service interface {
 	HandleKeycloakCallback(ctx context.Context, code string) (*AdminLoginResponse, error)
 	ValidateAdminToken(token string) (*jwt.Claims, error)
 	ValidateKeycloakToken(ctx context.Context, accessToken string) (*keycloak.UserInfo, error)
+	GetAdminInfo(ctx context.Context, adminToken string) (*keycloak.UserInfo, error)
 }
 
 type service struct {
@@ -101,7 +102,6 @@ func (s *service) HandleKeycloakCallback(ctx context.Context, code string) (*Adm
 
 	// Generate our internal admin token if service is available
 	var internalToken string
-	var expiresIn int64
 
 	if s.adminTokenService != nil {
 		// Convert Keycloak user info to internal user ID (you might want to store this mapping)
@@ -112,19 +112,15 @@ func (s *service) HandleKeycloakCallback(ctx context.Context, code string) (*Adm
 			s.logger.Error("Failed to generate internal admin token", zap.Error(err))
 			return nil, err
 		}
-		expiresIn = int64(s.adminTokenService.GetExpirationTime().Seconds())
 	} else {
 		// Use Keycloak token directly
 		internalToken = tokenResp.AccessToken
-		expiresIn = tokenResp.ExpiresIn
 	}
 
 	response := &AdminLoginResponse{
-		AdminToken:     internalToken,
-		ExpiresIn:      expiresIn,
-		KeycloakToken:  tokenResp.AccessToken, // Include original Keycloak token
-		RefreshToken:   tokenResp.RefreshToken,
-		UserInfo:       userInfo,
+		AdminToken:    internalToken,
+		KeycloakToken: tokenResp.AccessToken, // Include original Keycloak token
+		RefreshToken:  tokenResp.RefreshToken,
 	}
 
 	s.logger.Info("Admin logged in successfully via Keycloak", 
@@ -184,6 +180,29 @@ func (s *service) ValidateKeycloakToken(ctx context.Context, accessToken string)
 	}
 
 	return userInfo, nil
+}
+
+func (s *service) GetAdminInfo(ctx context.Context, adminToken string) (*keycloak.UserInfo, error) {
+	// First try to validate as internal admin token
+	if s.adminTokenService != nil {
+		claims, err := s.ValidateAdminToken(adminToken)
+		if err == nil {
+			// This is an internal admin token, but we need to get Keycloak user info
+			// For now, we'll return basic info from the JWT claims
+			// In production, you'd want to store and retrieve full user info
+			return &keycloak.UserInfo{
+				Sub:               claims.Subject,
+				Email:             claims.Email,
+				EmailVerified:     true,
+				PreferredUsername: claims.Email,
+				Name:              claims.Email, // Fallback
+				Roles:             []string{"admin"},
+			}, nil
+		}
+	}
+
+	// Try to validate as Keycloak token
+	return s.ValidateKeycloakToken(ctx, adminToken)
 }
 
 // Helper functions

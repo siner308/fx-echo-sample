@@ -51,14 +51,54 @@ Content-Type: application/json
 }
 ```
 
-### 관리자 로그인
+### 관리자 SSO 인증 URL
 ```http
-POST /api/v1/auth/admin/login
+GET /auth/admin/sso/auth-url
+```
+
+**응답:**
+```json
+{
+  "auth_url": "https://keycloak.example.com/auth/realms/..."
+}
+```
+
+### 관리자 SSO 콜백
+```http
+POST /auth/admin/sso/callback
 Content-Type: application/json
 
 {
+  "code": "authorization_code_from_keycloak",
+  "state": "optional_state_parameter"
+}
+```
+
+**응답:**
+```json
+{
+  "admin_token": "eyJhbGciOiJIUzI1NiIs...",
+  "keycloak_token": "eyJhbGciOiJSUzI1NiIs...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+### 관리자 정보 조회 (관리자 인증)
+```http
+GET /auth/admin/me
+Authorization: Bearer <admin_token>
+```
+
+**응답:**
+```json
+{
+  "sub": "keycloak-user-id",
   "email": "admin@example.com",
-  "password": "admin_password"
+  "email_verified": true,
+  "preferred_username": "admin",
+  "name": "Admin User",
+  "roles": ["admin", "realm-admin"],
+  "groups": ["administrators"]
 }
 ```
 

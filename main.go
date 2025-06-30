@@ -2,6 +2,7 @@ package main
 
 import (
 	"fxserver/middleware"
+	"fxserver/modules/auth"
 	"fxserver/modules/coupon"
 	"fxserver/modules/user"
 	"fxserver/pkg/validator"
@@ -21,6 +22,7 @@ func main() {
 			middleware.NewErrorMiddleware,
 			server.NewEchoServer,
 		),
+		auth.Module,
 		user.Module,
 		coupon.Module,
 		fx.Invoke(func(s *server.EchoServer) {

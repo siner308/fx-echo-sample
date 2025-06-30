@@ -2,6 +2,7 @@ package coupon
 
 import (
 	"fxserver/modules/coupon/repository"
+	"fxserver/pkg/router"
 	"go.uber.org/fx"
 )
 
@@ -10,5 +11,10 @@ var Module = fx.Options(
 	fx.Provide(
 		NewService,
 		NewHandler,
+		fx.Annotate(
+			NewRoutes,
+			fx.As(new(router.ProtectedRouteRegistrar)),
+			fx.ResultTags(`group:"protected_routes"`),
+		),
 	),
 )

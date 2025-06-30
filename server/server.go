@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"fxserver/middleware"
-	"fxserver/modules/coupon"
-	"fxserver/modules/user"
+	"fxserver/modules/auth"
+	"fxserver/pkg/router"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/fx"
@@ -18,31 +18,36 @@ type EchoServer struct {
 	log  *zap.Logger
 }
 
-func NewEchoServer(
-	lc fx.Lifecycle,
-	log *zap.Logger,
-	loggerMiddleware *middleware.LoggerMiddleware,
-	errorMiddleware *middleware.ErrorMiddleware,
-	userHandler *user.Handler,
-	couponHandler *coupon.Handler,
-) *EchoServer {
+type ServerDeps struct {
+	fx.In
+	Lifecycle           fx.Lifecycle
+	Logger              *zap.Logger
+	LoggerMiddleware    *middleware.LoggerMiddleware
+	ErrorMiddleware     *middleware.ErrorMiddleware
+	AuthMiddleware      *auth.Middleware
+	RouteRegistrars     []router.RouteRegistrar           `group:"routes"`
+	ProtectedRegistrars []router.ProtectedRouteRegistrar  `group:"protected_routes"`
+	AdminRegistrars     []router.AdminRouteRegistrar      `group:"admin_routes,optional"`
+}
+
+func NewEchoServer(deps ServerDeps) *EchoServer {
 	e := echo.New()
 
 	// Set error handler
-	e.HTTPErrorHandler = errorMiddleware.ErrorHandler()
+	e.HTTPErrorHandler = deps.ErrorMiddleware.ErrorHandler()
 
 	// Add middleware
-	e.Use(loggerMiddleware.LoggerMiddleware())
+	e.Use(deps.LoggerMiddleware.LoggerMiddleware())
 
-	// Setup routes
-	setupRoutes(e, userHandler, couponHandler)
+	// Setup routes using modular registration
+	setupModularRoutes(e, deps)
 
 	server := &EchoServer{
 		echo: e,
-		log:  log,
+		log:  deps.Logger,
 	}
 
-	lc.Append(fx.Hook{
+	deps.Lifecycle.Append(fx.Hook{
 		OnStart: server.Start,
 		OnStop:  server.Stop,
 	})
@@ -65,24 +70,23 @@ func (s *EchoServer) Stop(ctx context.Context) error {
 	return s.echo.Shutdown(ctx)
 }
 
-func setupRoutes(e *echo.Echo, userHandler *user.Handler, couponHandler *coupon.Handler) {
+func setupModularRoutes(e *echo.Echo, deps ServerDeps) {
+	// Register all routes - modules will handle their own middleware
+	for _, registrar := range deps.RouteRegistrars {
+		registrar.RegisterRoutes(e)
+	}
+
+	// For protected routes, we still create the groups but modules apply middleware individually
 	api := e.Group("/api/v1")
+	
+	// Register protected routes - each module applies auth middleware as needed
+	for _, registrar := range deps.ProtectedRegistrars {
+		registrar.RegisterProtectedRoutes(api)
+	}
 
-	// User routes
-	users := api.Group("/users")
-	users.POST("", userHandler.CreateUser)
-	users.GET("/:id", userHandler.GetUser)
-	users.PUT("/:id", userHandler.UpdateUser)
-	users.DELETE("/:id", userHandler.DeleteUser)
-	users.GET("", userHandler.ListUsers)
-
-	// Coupon routes
-	coupons := api.Group("/coupons")
-	coupons.POST("", couponHandler.CreateCoupon)
-	coupons.GET("/:id", couponHandler.GetCoupon)
-	coupons.GET("/code/:code", couponHandler.GetCouponByCode)
-	coupons.PUT("/:id", couponHandler.UpdateCoupon)
-	coupons.DELETE("/:id", couponHandler.DeleteCoupon)
-	coupons.GET("", couponHandler.ListCoupons)
-	coupons.POST("/use", couponHandler.UseCoupon)
+	// Admin routes group - modules apply admin middleware as needed
+	admin := api.Group("/admin")
+	for _, registrar := range deps.AdminRegistrars {
+		registrar.RegisterAdminRoutes(admin)
+	}
 }

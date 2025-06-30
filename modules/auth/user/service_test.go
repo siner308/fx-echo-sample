@@ -87,7 +87,6 @@ func TestLogin(t *testing.T) {
 				verifier.On("VerifyUserPassword", "test@example.com", "password123").Return(testUser, nil)
 				access.On("GenerateToken", 1, "test@example.com").Return("access_token", nil)
 				refresh.On("GenerateToken", 1, "test@example.com").Return("refresh_token", nil)
-				access.On("GetExpirationTime").Return(time.Hour)
 			},
 			wantErr:  false,
 			wantUser: true,
@@ -157,13 +156,6 @@ func TestLogin(t *testing.T) {
 				assert.NotNil(t, response)
 				assert.Equal(t, "access_token", response.AccessToken)
 				assert.Equal(t, "refresh_token", response.RefreshToken)
-				assert.Equal(t, int64(3600), response.ExpiresIn) // 1 hour in seconds
-				
-				if tt.wantUser {
-					assert.Equal(t, testUser.ID, response.User.ID)
-					assert.Equal(t, testUser.Email, response.User.Email)
-					assert.Equal(t, testUser.Name, response.User.Name)
-				}
 			}
 
 			accessTokenService.AssertExpectations(t)
@@ -192,7 +184,6 @@ func TestRefreshToken(t *testing.T) {
 			setupMock: func(access, refresh *MockJWTService) {
 				refresh.On("ValidateToken", "valid_refresh_token").Return(validClaims, nil)
 				access.On("GenerateToken", 1, "test@example.com", "user").Return("new_access_token", nil)
-				access.On("GetExpirationTime").Return(time.Hour)
 			},
 			wantErr: false,
 		},
@@ -234,7 +225,6 @@ func TestRefreshToken(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, response)
 				assert.Equal(t, "new_access_token", response.AccessToken)
-				assert.Equal(t, int64(3600), response.ExpiresIn)
 			}
 
 			accessTokenService.AssertExpectations(t)

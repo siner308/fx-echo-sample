@@ -13,6 +13,7 @@ import (
 type Service interface {
 	CreateUser(req CreateUserRequest) (*entity.User, error)
 	GetUser(id int) (*entity.User, error)
+	GetMyInfo(userID int) (*entity.User, error)
 	UpdateUser(id int, req UpdateUserRequest) (*entity.User, error)
 	DeleteUser(id int) error
 	ListUsers() ([]*entity.User, error)
@@ -71,6 +72,10 @@ func (s *service) GetUser(id int) (*entity.User, error) {
 	}
 
 	return user, nil
+}
+
+func (s *service) GetMyInfo(userID int) (*entity.User, error) {
+	return s.GetUser(userID)
 }
 
 func (s *service) UpdateUser(id int, req UpdateUserRequest) (*entity.User, error) {

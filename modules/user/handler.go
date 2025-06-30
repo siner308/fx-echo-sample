@@ -82,6 +82,37 @@ func (h *Handler) GetUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, user.ToResponse())
 }
 
+func (h *Handler) GetMyInfo(c echo.Context) error {
+	// Get user ID from JWT token context
+	userIDInterface := c.Get("user_id")
+	if userIDInterface == nil {
+		return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Error: "User not authenticated",
+		})
+	}
+
+	userID, ok := userIDInterface.(int)
+	if !ok {
+		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error: "Invalid user context",
+		})
+	}
+
+	user, err := h.service.GetMyInfo(userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Error: "User not found",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error: "Failed to get user info",
+		})
+	}
+
+	return c.JSON(http.StatusOK, user.ToResponse())
+}
+
 func (h *Handler) UpdateUser(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)

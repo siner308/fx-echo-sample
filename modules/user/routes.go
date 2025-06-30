@@ -41,6 +41,7 @@ func (r *Routes) RegisterRoutes(e *echo.Echo) {
 	users.GET("", r.handler.ListUsers, r.adminMiddleware.VerifyAdminToken()) // Admin only: list all users
 
 	// User routes (self-management)
+	users.GET("/me", r.handler.GetMyInfo, r.userMiddleware.VerifyAccessToken())      // User: get own info
 	users.GET("/:id", r.handler.GetUser, r.userMiddleware.VerifyAccessToken())       // User: get user details (self or public info)
 	users.PUT("/:id", r.handler.UpdateUser, r.userMiddleware.VerifyAccessToken())    // User: update own profile
 	users.DELETE("/:id", r.handler.DeleteUser, r.userMiddleware.VerifyAccessToken()) // User: delete own account

@@ -80,12 +80,6 @@ func (s *service) Login(email, password string) (*LoginResponse, error) {
 	response := &LoginResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    int64(s.accessTokenService.GetExpirationTime().Seconds()),
-		User: UserResponse{
-			ID:    userInfo.ID,
-			Name:  userInfo.Name,
-			Email: userInfo.Email,
-		},
 	}
 
 	s.logger.Info("User logged in successfully", zap.Int("user_id", userInfo.ID), zap.String("email", email))
@@ -108,7 +102,6 @@ func (s *service) RefreshToken(refreshToken string) (*RefreshResponse, error) {
 
 	response := &RefreshResponse{
 		AccessToken: accessToken,
-		ExpiresIn:   int64(s.accessTokenService.GetExpirationTime().Seconds()),
 	}
 
 	s.logger.Info("Token refreshed successfully", zap.Int("user_id", claims.UserID))

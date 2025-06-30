@@ -37,13 +37,7 @@ Content-Type: application/json
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
-  "expires_in": 3600,
-  "user": {
-    "id": 1,
-    "email": "user@example.com", 
-    "name": "John Doe"
-  }
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
 }
 ```
 
@@ -80,6 +74,22 @@ Content-Type: application/json
   "email": "john@example.com",
   "age": 25,
   "password": "secure_password"
+}
+```
+
+### 내 정보 조회 (사용자 인증)
+```http
+GET /api/v1/users/me
+Authorization: Bearer <access_token>
+```
+
+**응답:**
+```json
+{
+  "id": 1,
+  "name": "John Doe",
+  "email": "john@example.com",
+  "age": 25
 }
 ```
 

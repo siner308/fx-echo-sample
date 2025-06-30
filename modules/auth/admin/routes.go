@@ -8,27 +8,30 @@ import (
 )
 
 type Routes struct {
-	handler *Handler
+	handler    *Handler
+	middleware *Middleware
 }
 
 type RoutesParam struct {
 	fx.In
-	Handler *Handler
+	Handler    *Handler
+	Middleware *Middleware
 }
 
 func NewRoutes(p RoutesParam) router.RouteRegistrar {
 	return &Routes{
-		handler: p.Handler,
+		handler:    p.Handler,
+		middleware: p.Middleware,
 	}
 }
 
 func (r *Routes) RegisterRoutes(e *echo.Echo) {
 	auth := e.Group("/auth/admin")
 
-	// Keycloak SSO routes
+	// Public routes (no auth required)
 	auth.GET("/sso/auth-url", r.handler.GetKeycloakAuthURL)
 	auth.POST("/sso/callback", r.handler.HandleKeycloakCallback)
 	
-	// Admin user info route (requires admin token)
-	auth.GET("/me", r.handler.GetAdminInfo)
+	// Protected routes (requires admin token)
+	auth.GET("/me", r.handler.GetAdminInfo, r.middleware.VerifyAdminToken())
 }

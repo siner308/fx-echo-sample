@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	userauth "fxserver/modules/auth/user"
 	"fxserver/modules/user/entity"
 	"fxserver/modules/user/repository"
 	"fxserver/pkg/dto"
@@ -83,18 +84,11 @@ func (h *Handler) GetUser(c echo.Context) error {
 }
 
 func (h *Handler) GetMyInfo(c echo.Context) error {
-	// Get user ID from JWT token context
-	userIDInterface := c.Get("user_id")
-	if userIDInterface == nil {
+	// Get user ID from JWT token context (set by middleware)
+	userID, ok := userauth.GetUserID(c)
+	if !ok {
 		return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Error: "User not authenticated",
-		})
-	}
-
-	userID, ok := userIDInterface.(int)
-	if !ok {
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Invalid user context",
 		})
 	}
 

@@ -87,44 +87,31 @@ func (h *Handler) HandleKeycloakCallback(c echo.Context) error {
 
 // GetAdminInfo returns the current admin user's information
 func (h *Handler) GetAdminInfo(c echo.Context) error {
-	// Get admin token from authorization header
-	authHeader := c.Request().Header.Get("Authorization")
-	if authHeader == "" {
+	// Get admin info from context (set by middleware)
+	adminEmail, ok := GetAdminEmail(c)
+	if !ok {
 		return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "Missing authorization header",
+			Error: "Admin user not found in context",
 		})
 	}
 
-	// Extract token from "Bearer <token>" format
-	const bearerPrefix = "Bearer "
-	if len(authHeader) < len(bearerPrefix) || authHeader[:len(bearerPrefix)] != bearerPrefix {
+	adminID, ok := GetAdminID(c)
+	if !ok {
 		return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "Invalid authorization header format",
-		})
-	}
-	
-	adminToken := authHeader[len(bearerPrefix):]
-	if adminToken == "" {
-		return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "Missing admin token",
+			Error: "Admin user ID not found in context",
 		})
 	}
 
-	adminInfo, err := h.service.GetAdminInfo(c.Request().Context(), adminToken)
-	if err != nil {
-		if errors.Is(err, ErrNotAdminUser) {
-			return c.JSON(http.StatusForbidden, dto.ErrorResponse{
-				Error: "Insufficient permissions - admin access required",
-			})
-		}
-		if errors.Is(err, ErrAdminTokenUnavailable) || errors.Is(err, ErrKeycloakUnavailable) {
-			return c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{
-				Error: "Admin service unavailable",
-			})
-		}
-		return c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error: "Invalid or expired admin token",
-		})
+	// For simplicity, return admin info from JWT claims
+	// In production, you might want to fetch full admin info from Keycloak
+	adminRole, _ := GetAdminRole(c)
+	tokenType, _ := GetTokenType(c)
+
+	adminInfo := map[string]interface{}{
+		"id":    adminID,
+		"email": adminEmail,
+		"role":  adminRole,
+		"token_type": tokenType,
 	}
 
 	return c.JSON(http.StatusOK, adminInfo)

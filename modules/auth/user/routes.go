@@ -24,7 +24,7 @@ func NewRoutes(p RoutesParam) router.RouteRegistrar {
 
 func (r *Routes) RegisterRoutes(e *echo.Echo) {
 	auth := e.Group("/auth")
-	
+
 	// Public user auth routes
 	auth.POST("/login", r.handler.Login)
 	auth.POST("/refresh", r.handler.RefreshToken)

@@ -9,10 +9,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	ErrInvalidUserData = errors.New("invalid user data")
-)
-
 type Service interface {
 	CreateUser(req CreateUserRequest) (*entity.User, error)
 	GetUser(id int) (*entity.User, error)

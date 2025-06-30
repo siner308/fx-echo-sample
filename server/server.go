@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"fxserver/middleware"
@@ -17,7 +18,7 @@ type EchoServer struct {
 	log  *zap.Logger
 }
 
-type ServerParam struct {
+type Param struct {
 	fx.In
 	Lifecycle        fx.Lifecycle
 	Logger           *zap.Logger
@@ -26,7 +27,7 @@ type ServerParam struct {
 	RouteRegistrars  []router.RouteRegistrar `group:"routes"`
 }
 
-func NewEchoServer(p ServerParam) *EchoServer {
+func NewEchoServer(p Param) *EchoServer {
 	e := echo.New()
 
 	// Set error handler
@@ -36,7 +37,7 @@ func NewEchoServer(p ServerParam) *EchoServer {
 	e.Use(p.LoggerMiddleware.LoggerMiddleware())
 
 	// Setup routes using simplified registration
-	setupRoutes(e, p)
+	setupRoutes(e, p.RouteRegistrars)
 
 	server := &EchoServer{
 		echo: e,
@@ -54,7 +55,7 @@ func NewEchoServer(p ServerParam) *EchoServer {
 func (s *EchoServer) Start(ctx context.Context) error {
 	s.log.Info("Starting HTTP server", zap.String("addr", ":8080"))
 	go func() {
-		if err := s.echo.Start(":8080"); err != nil && err != http.ErrServerClosed {
+		if err := s.echo.Start(":8080"); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.log.Fatal("Server failed to start", zap.Error(err))
 		}
 	}()
@@ -66,9 +67,9 @@ func (s *EchoServer) Stop(ctx context.Context) error {
 	return s.echo.Shutdown(ctx)
 }
 
-func setupRoutes(e *echo.Echo, p ServerParam) {
+func setupRoutes(e *echo.Echo, registrars []router.RouteRegistrar) {
 	// Register all routes - each module handles its own middleware selection
-	for _, registrar := range p.RouteRegistrars {
-		registrar.RegisterRoutes(e)
+	for _, r := range registrars {
+		r.RegisterRoutes(e)
 	}
 }

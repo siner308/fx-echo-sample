@@ -13,7 +13,9 @@
       "Bash(go test:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(touch:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }

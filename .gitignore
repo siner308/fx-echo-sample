@@ -1,4 +1,6 @@
-# Binaries for programs and plugins
+# Binaries
+fxserver
+build/
 *.exe
 *.exe~
 *.dll
@@ -8,11 +10,12 @@
 # Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Output of the go coverage tool
 *.out
+coverage.html
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Dependency directories
+vendor/
 
 # Go workspace file
 go.work
@@ -20,8 +23,7 @@ go.work
 # Environment files
 .env
 .env.local
-.env.production
-.env.staging
+.env.*.local
 
 # IDE files
 .vscode/
@@ -41,15 +43,3 @@ Thumbs.db
 
 # Logs
 *.log
-logs/
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Build outputs
-dist/
-build/
-bin/

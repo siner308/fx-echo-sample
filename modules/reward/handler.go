@@ -47,16 +47,11 @@ func NewHandler(p HandlerParam) *Handler {
 func (h *Handler) GrantReward(c echo.Context) error {
 	var req GrantRewardRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	response, err := h.service.GrantRewards(req)
@@ -67,9 +62,7 @@ func (h *Handler) GrantReward(c echo.Context) error {
 		}
 		
 		h.logger.Error("Failed to grant reward", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to grant reward",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to grant reward"))
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -90,31 +83,22 @@ func (h *Handler) GrantReward(c echo.Context) error {
 func (h *Handler) BulkGrantReward(c echo.Context) error {
 	var req BulkGrantRewardRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	// Additional validation for bulk operations
 	if len(req.UserIDs) > 1000 {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Cannot grant rewards to more than 1000 users at once",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Cannot grant rewards to more than 1000 users at once", "invalid_request_error"))
 	}
 
 	response, err := h.service.BulkGrantRewards(req)
 	if err != nil {
 		h.logger.Error("Failed to bulk grant rewards", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to bulk grant rewards",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to bulk grant rewards"))
 	}
 
 	// Return 207 Multi-Status if there were partial failures
@@ -152,15 +136,3 @@ func (h *Handler) GetRewardSources(c echo.Context) error {
 	})
 }
 
-// Helper function to parse validation errors
-func parseValidationErrors(err error) map[string]string {
-	details := make(map[string]string)
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		for field, message := range validationErrors.Errors {
-			details[field] = message
-		}
-	} else {
-		details["validation"] = err.Error()
-	}
-	return details
-}

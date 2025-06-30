@@ -52,31 +52,22 @@ func NewHandler(p HandlerParam) *Handler {
 func (h *Handler) ProcessPayment(c echo.Context) error {
 	var req CreatePaymentRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	response, err := h.service.ProcessPayment(req)
 	if err != nil {
-		if errors.Is(err, ErrInvalidPaymentMethod) || 
-		   errors.Is(err, ErrInvalidAmount) ||
-		   errors.Is(err, ErrPaymentAlreadyExists) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: err.Error(),
-			})
+		if errors.Is(err, ErrInvalidPaymentMethod) ||
+			errors.Is(err, ErrInvalidAmount) ||
+			errors.Is(err, ErrPaymentAlreadyExists) {
+			return c.JSON(http.StatusBadRequest, dto.NewError(err.Error(), "invalid_request_error"))
 		}
 		h.logger.Error("Failed to process payment", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to process payment",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to process payment"))
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -99,22 +90,16 @@ func (h *Handler) GetPayment(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid payment ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid payment ID", "invalid_request_error"))
 	}
 
 	payment, err := h.service.GetPayment(id)
 	if err != nil {
 		if errors.Is(err, ErrPaymentNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Payment not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Payment"))
 		}
 		h.logger.Error("Failed to get payment", zap.Error(err), zap.Int("payment_id", id))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get payment",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to get payment"))
 	}
 
 	return c.JSON(http.StatusOK, payment.ToResponse())
@@ -137,20 +122,16 @@ func (h *Handler) GetUserPayments(c echo.Context) error {
 	idParam := c.Param("id")
 	userID, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid user ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid user ID", "invalid_request_error"))
 	}
 
 	status := c.QueryParam("status")
-	
+
 	var history *entity.PaymentHistoryResponse
-	
+
 	if status != "" {
 		if !entity.IsValidPaymentStatus(status) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: "Invalid payment status",
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError("Invalid payment status", "invalid_request_error"))
 		}
 		history, err = h.service.GetUserPaymentsByStatus(userID, entity.PaymentStatus(status))
 	} else {
@@ -159,9 +140,7 @@ func (h *Handler) GetUserPayments(c echo.Context) error {
 
 	if err != nil {
 		h.logger.Error("Failed to get user payments", zap.Error(err), zap.Int("user_id", userID))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get user payments",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to get user payments"))
 	}
 
 	return c.JSON(http.StatusOK, history)
@@ -183,17 +162,13 @@ func (h *Handler) GetUserPaymentSummary(c echo.Context) error {
 	idParam := c.Param("id")
 	userID, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid user ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid user ID", "invalid_request_error"))
 	}
 
 	summary, err := h.service.GetPaymentSummaryByUser(userID)
 	if err != nil {
 		h.logger.Error("Failed to get user payment summary", zap.Error(err), zap.Int("user_id", userID))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get user payment summary",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to get user payment summary"))
 	}
 
 	return c.JSON(http.StatusOK, summary)
@@ -249,41 +224,28 @@ func (h *Handler) UpdatePaymentStatus(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid payment ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid payment ID", "invalid_request_error"))
 	}
 
 	var req UpdatePaymentStatusRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	payment, err := h.service.UpdatePaymentStatus(id, req)
 	if err != nil {
 		if errors.Is(err, ErrPaymentNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Payment not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Payment"))
 		}
 		if errors.Is(err, ErrInvalidPaymentStatus) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: err.Error(),
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError(err.Error(), "invalid_request_error"))
 		}
 		h.logger.Error("Failed to update payment status", zap.Error(err), zap.Int("payment_id", id))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to update payment status",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to update payment status"))
 	}
 
 	return c.JSON(http.StatusOK, payment.ToResponse())
@@ -307,41 +269,28 @@ func (h *Handler) RefundPayment(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid payment ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid payment ID", "invalid_request_error"))
 	}
 
 	var req RefundPaymentRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	payment, err := h.service.RefundPayment(id, req)
 	if err != nil {
 		if errors.Is(err, ErrPaymentNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Payment not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Payment"))
 		}
 		if errors.Is(err, ErrCannotRefund) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: err.Error(),
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError(err.Error(), "invalid_request_error"))
 		}
 		h.logger.Error("Failed to refund payment", zap.Error(err), zap.Int("payment_id", id))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to refund payment",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to refund payment"))
 	}
 
 	return c.JSON(http.StatusOK, payment.ToResponse())
@@ -373,9 +322,7 @@ func (h *Handler) GetAllPayments(c echo.Context) error {
 		history, err = h.service.GetPaymentsByDateRange(startDate, endDate)
 	} else if status != "" {
 		if !entity.IsValidPaymentStatus(status) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: "Invalid payment status",
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError("Invalid payment status", "invalid_request_error"))
 		}
 		history, err = h.service.GetPaymentsByStatus(entity.PaymentStatus(status))
 	} else {
@@ -384,9 +331,7 @@ func (h *Handler) GetAllPayments(c echo.Context) error {
 
 	if err != nil {
 		h.logger.Error("Failed to get payments", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get payments",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to get payments"))
 	}
 
 	return c.JSON(http.StatusOK, history)
@@ -406,23 +351,9 @@ func (h *Handler) GetPaymentSummary(c echo.Context) error {
 	summary, err := h.service.GetPaymentSummary()
 	if err != nil {
 		h.logger.Error("Failed to get payment summary", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get payment summary",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to get payment summary"))
 	}
 
 	return c.JSON(http.StatusOK, summary)
 }
 
-// Helper function to parse validation errors
-func parseValidationErrors(err error) map[string]string {
-	details := make(map[string]string)
-	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		for field, message := range validationErrors.Errors {
-			details[field] = message
-		}
-	} else {
-		details["validation"] = err.Error()
-	}
-	return details
-}

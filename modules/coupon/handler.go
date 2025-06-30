@@ -40,28 +40,19 @@ func NewHandler(p HandlerParam) *Handler {
 func (h *Handler) CreateCoupon(c echo.Context) error {
 	var req CreateCouponRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	coupon, err := h.service.CreateCoupon(req)
 	if err != nil {
 		if errors.Is(err, repository.ErrCouponExists) {
-			return c.JSON(http.StatusConflict, dto.ErrorResponse{
-				Error: "Coupon with this code already exists",
-			})
+			return c.JSON(http.StatusConflict, dto.NewError("Coupon with this code already exists", "invalid_request_error"))
 		}
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to create coupon",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to create coupon"))
 	}
 
 	return c.JSON(http.StatusCreated, coupon.ToResponse())
@@ -71,21 +62,15 @@ func (h *Handler) GetCoupon(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid coupon ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid coupon ID", "invalid_request_error"))
 	}
 
 	coupon, err := h.service.GetCoupon(id)
 	if err != nil {
 		if errors.Is(err, repository.ErrCouponNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Coupon not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Coupon"))
 		}
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to get coupon",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to get coupon"))
 	}
 
 	return c.JSON(http.StatusOK, coupon.ToResponse())
@@ -95,40 +80,27 @@ func (h *Handler) UpdateCoupon(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid coupon ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid coupon ID", "invalid_request_error"))
 	}
 
 	var req UpdateCouponRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	coupon, err := h.service.UpdateCoupon(id, req)
 	if err != nil {
 		if errors.Is(err, repository.ErrCouponNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Coupon not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Coupon"))
 		}
 		if errors.Is(err, repository.ErrCouponExists) {
-			return c.JSON(http.StatusConflict, dto.ErrorResponse{
-				Error: "Coupon with this code already exists",
-			})
+			return c.JSON(http.StatusConflict, dto.NewError("Coupon with this code already exists", "invalid_request_error"))
 		}
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to update coupon",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to update coupon"))
 	}
 
 	return c.JSON(http.StatusOK, coupon.ToResponse())
@@ -138,21 +110,15 @@ func (h *Handler) DeleteCoupon(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid coupon ID",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid coupon ID", "invalid_request_error"))
 	}
 
 	err = h.service.DeleteCoupon(id)
 	if err != nil {
 		if errors.Is(err, repository.ErrCouponNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Coupon not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Coupon"))
 		}
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to delete coupon",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to delete coupon"))
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -172,9 +138,7 @@ func (h *Handler) ListCoupons(c echo.Context) error {
 	}
 
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to list coupons",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to list coupons"))
 	}
 
 	couponResponses := make([]entity.CouponResponse, len(coupons))
@@ -206,71 +170,43 @@ func (h *Handler) ListCoupons(c echo.Context) error {
 func (h *Handler) RedeemCoupon(c echo.Context) error {
 	var req RedeemCouponRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error: "Invalid request format",
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewError("Invalid request format", "invalid_request_error"))
 	}
 
 	if err := h.validator.Validate(req); err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Validation failed",
-			Details: parseValidationErrors(err),
-		})
+		return c.JSON(http.StatusBadRequest, dto.NewValidationErrors(err))
 	}
 
 	response, err := h.service.RedeemCoupon(req)
 	if err != nil {
 		if errors.Is(err, ErrCouponNotFound) {
-			return c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error: "Coupon not found",
-			})
+			return c.JSON(http.StatusNotFound, dto.NewNotFoundError("Coupon"))
 		}
 		if errors.Is(err, ErrCouponNotUsable) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: "Coupon is not usable (expired or inactive)",
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError("Coupon is not usable (expired or inactive)", "invalid_request_error"))
 		}
 		if errors.Is(err, ErrInvalidOrderAmount) {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: "Invalid order amount",
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError("Invalid order amount", "invalid_request_error"))
 		}
 		// Handle specific error messages from service
 		errorMsg := err.Error()
 		if errorMsg == "coupon already used" {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: "Coupon has already been used",
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError("Coupon has already been used", "invalid_request_error"))
 		}
 		if strings.Contains(errorMsg, "order amount does not meet minimum requirement") {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: errorMsg,
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError(errorMsg, "invalid_request_error"))
 		}
 		if strings.Contains(errorMsg, "order amount is required") {
-			return c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-				Error: errorMsg,
-			})
+			return c.JSON(http.StatusBadRequest, dto.NewError(errorMsg, "invalid_request_error"))
 		}
 		if strings.Contains(errorMsg, "failed to grant reward items") {
-			return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-				Error: "Failed to grant reward items",
-			})
+			return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to grant reward items"))
 		}
 		
 		h.logger.Error("Failed to redeem coupon", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error: "Failed to redeem coupon",
-		})
+		return c.JSON(http.StatusInternalServerError, dto.NewError("Failed to redeem coupon"))
 	}
 
 	return c.JSON(http.StatusOK, response)
 }
 
-func parseValidationErrors(err error) map[string]string {
-	details := make(map[string]string)
-	if err != nil {
-		details["validation"] = err.Error()
-	}
-	return details
-}
